@@ -54,6 +54,26 @@ You can log in using the basic HTML form at [http://localhost:3000](http://local
 
 ---
 
+## CDC Test
+To verify CDC is working, connect to TiDB and perform INSERT/UPDATE/DELETE on a test table.  
+If the table `helfy.notes` does not exist yet, create it first:
+
+```sql
+USE helfy;
+CREATE TABLE notes (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  body TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+You should see structured JSON change events appear in the consumer logs if you perform
+INSERT, UPDATE, or DELETE operations on this table:
+```bash
+docker logs -f helfy-cdc-consumer
+```
+
+
 ## Notes
 
 - All logs (user login + CDC events) are printed in structured JSON format using `log4js`.  
