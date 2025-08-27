@@ -47,8 +47,8 @@ This will:
 
 A default user is seeded automatically:
 
-- **Username:** `test@helfy.com`  
-- **Password:** `password`
+- Email: admin@example.com
+- Password: Password123!
 
 You can log in using the basic HTML form at [http://localhost:3000](http://localhost:3000)
 
