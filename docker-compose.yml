@@ -79,7 +79,9 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: helfy-kafka
-    depends_on: [zookeeper]
+    hostname: kafka
+    depends_on:
+      - zookeeper
     ports:
       - "9092:9092"
       - "29092:29092"
@@ -93,6 +95,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -108,8 +112,7 @@ services:
   ticdc:
     image: pingcap/ticdc:v7.5.0
     container_name: helfy-ticdc
-    depends_on:
-      - pd
+    depends_on: [pd]
     command:
       - /cdc
       - server
@@ -123,13 +126,12 @@ services:
 
   cdc-create:
     image: pingcap/ticdc:v7.5.0
-    container_name: helfy-cdc-create
     depends_on: [ticdc, kafka, tidb]
     volumes:
-      - ./cdc.toml:/cdc.toml:ro
+      - ./cdc.toml:/etc/ticdc/cdc.toml:ro
       - ./scripts/cdc-create.sh:/cdc-create.sh:ro
-    entrypoint: ["/bin/sh","-c"]
-    command: "sh /cdc-create.sh"
+    command: ["/bin/sh", "/cdc-create.sh"]
+
 
 
   # ---------- CDC CONSUMER ----------

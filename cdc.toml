@@ -1,5 +1,6 @@
-enable-old-value = true
-
+# cdc.toml
 [filter]
-# capture only our app schema
 rules = ["helfy.*"]
+
+[sink]
+protocol = "canal-json"
