@@ -1,0 +1,5 @@
+enable-old-value = true
+
+[filter]
+# capture only our app schema
+rules = ["helfy.*"]

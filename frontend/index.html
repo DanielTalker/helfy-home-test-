@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Login</title>
+  </head>
+  <body>
+    <h1>Login</h1>
+    <form id="loginForm">
+      <div><label>Email:</label><input id="email" type="email" required /></div>
+      <div><label>Password:</label><input id="password" type="password" required minlength="6" /></div>
+      <button type="submit">Login</button>
+    </form>
+    <pre id="output"></pre>
+    <script>
+      const API_BASE = 'http://localhost:3001';
+      const form = document.getElementById('loginForm');
+      const out = document.getElementById('output');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        out.textContent = '';
+
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!email || !password) {
+          out.textContent = 'Please enter email and password';
+          return;
+        }
+
+        try {
+          const resp = await fetch(`${API_BASE}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+
+          const data = await resp.json();
+          if (!resp.ok) {
+            out.textContent = 'Error: ' + (data.error || 'Login failed');
+            return;
+          }
+
+          const token = data.token;
+          out.textContent = 'Login successful!\nToken = ' + token + '\nCalling /api/me...';
+
+          const meResp = await fetch(`${API_BASE}/api/me`, {
+            headers: { 'X-Auth-Token': token }
+          });
+          const me = await meResp.json();
+
+          out.textContent += '\n/me => ' + JSON.stringify(me, null, 2);
+        } catch {
+          out.textContent = 'Network error';
+        }
+      });
+    </script>
+  </body>
+</html>

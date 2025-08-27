@@ -1,0 +1,153 @@
+version: "3.9"
+
+services:
+  # ---------- APP ----------
+  frontend:
+    build: ./frontend
+    container_name: helfy-frontend
+    ports: ["8080:80"]
+    depends_on: [backend]
+
+  backend:
+    build: ./backend
+    container_name: helfy-backend
+    environment:
+      - DB_HOST=tidb
+      - DB_PORT=4000
+      - DB_USER=root
+      - DB_NAME=helfy
+    ports: ["3001:3001"]
+    depends_on: [tidb, db-init]
+    restart: always
+
+  # ---------- TiDB CLUSTER FOR CDC ----------
+  pd:
+    image: pingcap/pd:v7.5.0
+    container_name: helfy-pd
+    command:
+      - --name=pd
+      - --client-urls=http://0.0.0.0:2379
+      - --peer-urls=http://0.0.0.0:2380
+      - --advertise-client-urls=http://pd:2379
+      - --advertise-peer-urls=http://pd:2380
+      - --initial-cluster=pd=http://pd:2380
+      - --data-dir=/data/pd
+    ports: ["2379:2379"]
+
+  tikv:
+    image: pingcap/tikv:v7.5.0
+    container_name: helfy-tikv
+    depends_on: [pd]
+    command:
+      - --addr=0.0.0.0:20160
+      - --advertise-addr=tikv:20160
+      - --pd=pd:2379
+      - --data-dir=/data/tikv
+
+  tidb:
+    image: pingcap/tidb:v7.5.0
+    container_name: helfy-tidb
+    depends_on: [pd, tikv]
+    command:
+      - --store=tikv
+      - --path=pd:2379
+      - --advertise-address=tidb
+      - --log-file=""
+    ports: ["4000:4000", "10080:10080"]
+
+  # ---------- DB INIT (schema + seed row) ----------
+  db-init:
+    image: mysql:8
+    depends_on: [tidb]
+    volumes:
+      - ./init.sql:/init.sql
+    command: >
+      sh -c "
+        until mysqladmin ping -h tidb -P 4000 --silent; do echo waiting tidb; sleep 2; done &&
+        mysql -h tidb -P 4000 -uroot < /init.sql
+      "
+
+  # ---------- KAFKA (already configured) ----------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: helfy-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports: ["2181:2181"]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: helfy-kafka
+    depends_on: [zookeeper]
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: helfy-kafka-ui
+    ports: ["8081:8080"]
+    depends_on: [kafka]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+  # ---------- TiCDC SERVER + AUTO CHANGEFEED ----------
+  ticdc:
+    image: pingcap/ticdc:v7.5.0
+    container_name: helfy-ticdc
+    depends_on:
+      - pd
+    command:
+      - /cdc
+      - server
+      - --addr=0.0.0.0:8300
+      - --advertise-addr=ticdc:8300
+      - --pd=http://pd:2379
+      - --log-file=-
+    ports:
+      - "8300:8300"
+
+
+  cdc-create:
+    image: pingcap/ticdc:v7.5.0
+    container_name: helfy-cdc-create
+    depends_on: [ticdc, kafka, tidb]
+    volumes:
+      - ./cdc.toml:/cdc.toml
+    entrypoint: ["/bin/sh","-c"]
+    command: >
+      "
+      until curl -sf http://ticdc:8300/api/v1/status >/dev/null; do echo waiting ticdc; sleep 2; done;
+      /cdc cli changefeed list --server=http://ticdc:8300 | grep -q '\"id\":\"helfy-cf\"' \
+        || /cdc cli changefeed create \
+            --server=http://ticdc:8300 \
+            --changefeed-id=helfy-cf \
+            --sink-uri='kafka://kafka:9092/topic=helfy.cdc?protocol=open-protocol&partition-num=1' \
+            --config=/cdc.toml;
+      /cdc cli changefeed resume --server=http://ticdc:8300 --changefeed-id=helfy-cf || true;
+      echo 'Changefeed ready';
+      sleep infinity
+      "
+
+  # ---------- CDC CONSUMER (logs changes to console) ----------
+  cdc-consumer:
+    build: ./cdc-consumer
+    container_name: helfy-cdc-consumer
+    depends_on: [kafka]
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - CDC_TOPIC=helfy.cdc
+    restart: unless-stopped
