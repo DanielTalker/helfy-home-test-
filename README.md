@@ -21,3 +21,48 @@ Clone the repository and run:
 
 ```bash
 docker compose up -d
+```
+
+
+This will:
+
+- Start TiDB, Kafka, Zookeeper, Kafka UI  
+- Start the backend (Node.js API)  
+- Start the frontend  
+- Run TiCDC and automatically create the changefeed  
+- Launch the Kafka consumer
+
+---
+
+## Default User
+
+A default user is seeded automatically:
+
+- **Username:** `test@helfy.com`  
+- **Password:** `password`
+
+You can log in using the basic HTML form at [http://localhost:3000](http://localhost:3000)
+
+---
+
+## Project Structure
+
+```
+.
+├── backend/               # Express.js backend
+├── consumer/              # Kafka consumer
+├── frontend/              # Basic HTML login page
+├── docker-compose.yml     # Full environment
+├── init/                  # SQL schema + default data
+└── cdc.toml               # TiCDC configuration
+```
+
+---
+
+## 🧾 Notes
+
+- All logs (user login + CDC events) are printed in structured JSON format using `log4js`.  
+- TiDB CDC is configured to stream DB changes into Kafka.  
+- The consumer processes Kafka messages and logs them to the console.
+
+---
