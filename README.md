@@ -54,7 +54,7 @@ You can log in using the basic HTML form at [http://localhost:3000](http://local
 
 ---
 
-## 🧾 Notes
+## Notes
 
 - All logs (user login + CDC events) are printed in structured JSON format using `log4js`.  
 - TiDB CDC is configured to stream DB changes into Kafka.  
