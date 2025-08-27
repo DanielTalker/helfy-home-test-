@@ -33,6 +33,15 @@ This will:
 - Launch the Kafka consumer
 
 ---
+## Services:
+
+- Backend: http://localhost:3001
+
+- Frontend: http://localhost:8080
+
+- Kafka UI: http://localhost:8081
+
+---
 
 ## Default User
 
@@ -42,20 +51,6 @@ A default user is seeded automatically:
 - **Password:** `password`
 
 You can log in using the basic HTML form at [http://localhost:3000](http://localhost:3000)
-
----
-
-## Project Structure
-
-```
-.
-├── backend/               # Express.js backend
-├── consumer/              # Kafka consumer
-├── frontend/              # Basic HTML login page
-├── docker-compose.yml     # Full environment
-├── init/                  # SQL schema + default data
-└── cdc.toml               # TiCDC configuration
-```
 
 ---
 
