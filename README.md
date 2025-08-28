@@ -22,6 +22,7 @@ Clone the repository and run:
 docker compose up -d
 ```
 
+Please Note: It may take ~30–60 seconds for all services (TiDB, Kafka, TiCDC) to become fully ready :)
 
 This will:
 
