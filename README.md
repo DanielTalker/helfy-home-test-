@@ -77,7 +77,7 @@ docker logs -f helfy-cdc-consumer
 - All logs (user login + CDC events) are printed in structured JSON format using `log4js`.  
 - TiDB CDC is configured to stream DB changes into Kafka.  
 - The consumer processes Kafka messages and logs them to the console.
-- - To inspect logs:  
+- To inspect logs:  
   ```bash
   docker logs -f helfy-backend        # Auth activity logs
   docker logs -f helfy-cdc-consumer   # CDC change events
